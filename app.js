@@ -108,7 +108,8 @@ async function handleEvent(event) {
 // cron 排程：分 時 日 月 週 -> '0 9 * * *' = 09:00 每天
 // node-cron 支援 timezone 選項
 cron.schedule(
-    "0 9 * * *",
+    "*/1 * * * *",
+    // "0 9 * * *",
     async () => {
         console.log(
             "排程觸發: 發送「老闆在嗎？」給全部訂閱者",
