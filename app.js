@@ -18,7 +18,7 @@ const app = express();
 const SUB_FILE = path.join(__dirname, "subscribers.json");
 let subscribers = [];
 
-// 讀取已訂閱群組
+// 讀取已訂閱群組，若檔案不存在自動建立
 function loadSubscribers() {
   try {
     if (fs.existsSync(SUB_FILE)) {
@@ -26,12 +26,15 @@ function loadSubscribers() {
       if (!Array.isArray(subscribers)) subscribers = [];
     } else {
       subscribers = [];
+      fs.writeFileSync(SUB_FILE, JSON.stringify(subscribers, null, 2));
+      console.log("已建立空的 subscribers.json");
     }
   } catch (err) {
     console.error("讀取 subscribers.json 錯誤", err);
     subscribers = [];
   }
 }
+
 function saveSubscribers() {
   try {
     fs.writeFileSync(SUB_FILE, JSON.stringify(subscribers, null, 2));
@@ -39,6 +42,7 @@ function saveSubscribers() {
     console.error("寫入 subscribers.json 錯誤", err);
   }
 }
+
 loadSubscribers();
 
 // LINE webhook endpoint
@@ -102,8 +106,12 @@ cron.schedule(
 
     // 動態讀取最新群組清單
     try {
-      subscribers = JSON.parse(fs.readFileSync(SUB_FILE, "utf8"));
-      if (!Array.isArray(subscribers)) subscribers = [];
+      if (fs.existsSync(SUB_FILE)) {
+        subscribers = JSON.parse(fs.readFileSync(SUB_FILE, "utf8"));
+        if (!Array.isArray(subscribers)) subscribers = [];
+      } else {
+        subscribers = [];
+      }
     } catch (err) {
       console.error("讀取 subscribers.json 錯誤", err);
       subscribers = [];
@@ -127,7 +135,11 @@ cron.schedule(
         await client.pushMessage(groupId, message);
         console.log("已推送給群組", groupId);
       } catch (err) {
-        console.error("推送失敗 groupId=", groupId, err.originalError?.response?.data || err);
+        console.error(
+          "推送失敗 groupId=",
+          groupId,
+          err.originalError?.response?.data || err
+        );
         if (err && err.statusCode && (err.statusCode === 403 || err.statusCode === 410)) {
           const idx = subscribers.indexOf(groupId);
           if (idx !== -1) {
