@@ -136,6 +136,8 @@ cron.schedule(
             },
         };
 
+        console.log('訂閱者清單:', subscribers);
+
         for (const userId of subscribers.slice()) {
             try {
                 await client.pushMessage(userId, message);
