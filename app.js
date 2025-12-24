@@ -157,7 +157,7 @@ async function handleEvent(event) {
 
 // cron 每天早上 09:00 發送「老闆在嗎？」到所有群組
 cron.schedule(
-  "*/1 * * * *", // 測試每分鐘，正式用 "0 9 * * *"
+  "0 9 * * *", // 測試每分鐘，正式用 "0 9 * * *"
   async () => {
     console.log(
       "排程觸發: 發送「老闆在嗎？」給全部群組",
