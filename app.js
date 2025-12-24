@@ -14,11 +14,11 @@ const config = {
 const client = new line.Client(config);
 const app = express();
 
-// subscribers 存檔路徑
+// subscribers 存檔路徑，只存群組
 const SUB_FILE = path.join(__dirname, "subscribers.json");
 let subscribers = [];
 
-// 讀取已訂閱者
+// 讀取已訂閱群組
 function loadSubscribers() {
   try {
     if (fs.existsSync(SUB_FILE)) {
@@ -58,20 +58,6 @@ async function handleEvent(event) {
     const source = event.source;
     const type = source.type;
 
-    // 個人加入好友
-    if (event.type === "follow" && type === "user") {
-      const userId = source.userId;
-      if (!subscribers.includes(userId)) {
-        subscribers.push(userId);
-        saveSubscribers();
-        console.log("加入訂閱(個人):", userId);
-      }
-      return client.replyMessage(event.replyToken, {
-        type: "text",
-        text: "謝謝您加入！之後每天早上會收到「老闆在嗎？」",
-      });
-    }
-
     // Bot 被加入群組
     if (event.type === "join" && type === "group") {
       const groupId = source.groupId;
@@ -87,33 +73,15 @@ async function handleEvent(event) {
       });
     }
 
-    // 收到文字訊息
-    if (event.type === "message" && event.message.type === "text") {
+    // 收到群組訊息
+    if (event.type === "message" && type === "group" && event.message.type === "text") {
       const text = event.message.text.trim();
-
-      // 訂閱者管理（個人）
-      if (type === "user") {
-        const userId = source.userId;
-        if (userId && !subscribers.includes(userId)) {
-          subscribers.push(userId);
-          saveSubscribers();
-          console.log("加入訂閱(訊息觸發):", userId);
-        }
-      }
-
-      // 回覆 Quick Reply
       if (text === "在" || text === "不在") {
         return client.replyMessage(event.replyToken, {
           type: "text",
           text: `已收到回覆：${text}（謝謝）`,
         });
       }
-
-      // 其他文字
-      return client.replyMessage(event.replyToken, {
-        type: "text",
-        text: `你說：${text}`,
-      });
     }
 
     return Promise.resolve(null);
@@ -123,16 +91,16 @@ async function handleEvent(event) {
   }
 }
 
-// 每天早上 09:00 發送「老闆在嗎？」
+// cron 每天早上 09:00 發送「老闆在嗎？」到群組
 cron.schedule(
-  "*/1 * * * *", // 測試每分鐘，正式用 "0 9 * * *"
+  "*/1 * * * *", // 測試用每分鐘，正式用 "0 9 * * *"
   async () => {
     console.log(
-      "排程觸發: 發送「老闆在嗎？」給全部訂閱者",
+      "排程觸發: 發送「老闆在嗎？」給全部群組",
       new Date().toLocaleString()
     );
 
-    // 動態讀取最新 subscribers.json
+    // 動態讀取最新群組清單
     try {
       subscribers = JSON.parse(fs.readFileSync(SUB_FILE, "utf8"));
       if (!Array.isArray(subscribers)) subscribers = [];
@@ -141,7 +109,7 @@ cron.schedule(
       subscribers = [];
     }
 
-    console.log("訂閱者清單:", subscribers);
+    console.log("群組訂閱清單:", subscribers);
 
     const message = {
       type: "text",
@@ -154,19 +122,18 @@ cron.schedule(
       },
     };
 
-    for (const id of subscribers.slice()) {
+    for (const groupId of subscribers.slice()) {
       try {
-        await client.pushMessage(id, message);
-        console.log("已推送給", id);
+        await client.pushMessage(groupId, message);
+        console.log("已推送給群組", groupId);
       } catch (err) {
-        console.error("推送失敗 id=", id, err.originalError?.response?.data || err);
-        // 403 / 410 移除失效訂閱者
+        console.error("推送失敗 groupId=", groupId, err.originalError?.response?.data || err);
         if (err && err.statusCode && (err.statusCode === 403 || err.statusCode === 410)) {
-          const idx = subscribers.indexOf(id);
+          const idx = subscribers.indexOf(groupId);
           if (idx !== -1) {
             subscribers.splice(idx, 1);
             saveSubscribers();
-            console.log("移除失效訂閱者", id);
+            console.log("移除失效群組", groupId);
           }
         }
       }
