@@ -1,0 +1,12 @@
+services:
+  - type: web
+    name: boss-line-bot
+    env: node
+    plan: free
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: LINE_CHANNEL_SECRET
+        value: your_channel_secret
+      - key: LINE_CHANNEL_ACCESS_TOKEN
+        value: your_access_token
