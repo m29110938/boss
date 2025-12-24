@@ -18,16 +18,16 @@ const app = express();
 const SUB_FILE = path.join(__dirname, "subscribers.json");
 let subscribers = [];
 
-// 讀取已訂閱群組，若檔案不存在自動建立
+// 讀取已訂閱群組，檔案不存在就建立
 function loadSubscribers() {
   try {
-    if (fs.existsSync(SUB_FILE)) {
-      subscribers = JSON.parse(fs.readFileSync(SUB_FILE, "utf8"));
-      if (!Array.isArray(subscribers)) subscribers = [];
-    } else {
+    if (!fs.existsSync(SUB_FILE)) {
       subscribers = [];
       fs.writeFileSync(SUB_FILE, JSON.stringify(subscribers, null, 2));
       console.log("已建立空的 subscribers.json");
+    } else {
+      subscribers = JSON.parse(fs.readFileSync(SUB_FILE, "utf8"));
+      if (!Array.isArray(subscribers)) subscribers = [];
     }
   } catch (err) {
     console.error("讀取 subscribers.json 錯誤", err);
@@ -35,6 +35,7 @@ function loadSubscribers() {
   }
 }
 
+// 儲存 subscribers
 function saveSubscribers() {
   try {
     fs.writeFileSync(SUB_FILE, JSON.stringify(subscribers, null, 2));
@@ -52,7 +53,7 @@ app.post("/webhook", line.middleware(config), async (req, res) => {
     res.status(200).end(); // LINE webhook 必須回 200
   } catch (err) {
     console.error("Webhook error:", err);
-    res.status(200).end(); // 即使失敗也回 200
+    res.status(200).end();
   }
 });
 
@@ -70,7 +71,7 @@ async function handleEvent(event) {
         saveSubscribers();
         console.log("加入訂閱(群組):", groupId);
       }
-      // 可選回覆群組訊息
+      // 回覆群組歡迎訊息
       return client.pushMessage(groupId, {
         type: "text",
         text: "大家好！每天早上會收到「老闆在嗎？」",
@@ -97,27 +98,19 @@ async function handleEvent(event) {
 
 // cron 每天早上 09:00 發送「老闆在嗎？」到群組
 cron.schedule(
-  "*/1 * * * *", // 測試用每分鐘，正式用 "0 9 * * *"
+  "*/1 * * * *", // 測試每分鐘，正式用 "0 9 * * *"
   async () => {
     console.log(
       "排程觸發: 發送「老闆在嗎？」給全部群組",
       new Date().toLocaleString()
     );
 
-    // 動態讀取最新群組清單
-    try {
-      if (fs.existsSync(SUB_FILE)) {
-        subscribers = JSON.parse(fs.readFileSync(SUB_FILE, "utf8"));
-        if (!Array.isArray(subscribers)) subscribers = [];
-      } else {
-        subscribers = [];
-      }
-    } catch (err) {
-      console.error("讀取 subscribers.json 錯誤", err);
-      subscribers = [];
-    }
+    // 確保讀取最新群組清單
+    loadSubscribers();
 
     console.log("群組訂閱清單:", subscribers);
+
+    if (subscribers.length === 0) return;
 
     const message = {
       type: "text",
@@ -140,6 +133,7 @@ cron.schedule(
           groupId,
           err.originalError?.response?.data || err
         );
+        // 403 / 410 移除失效群組
         if (err && err.statusCode && (err.statusCode === 403 || err.statusCode === 410)) {
           const idx = subscribers.indexOf(groupId);
           if (idx !== -1) {
