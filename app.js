@@ -49,12 +49,13 @@ function saveSubscribers() {
 function createMessage() {
   return {
     type: "text",
-    text: "老闆在嗎？",
+    text: "回覆",
     quickReply: {
       items: [
         { type: "action", action: { type: "message", label: "在", text: "在" } },
         { type: "action", action: { type: "message", label: "不在", text: "不在" } },
         { type: "action", action: { type: "message", label: "準備離開", text: "準備離開" } }
+        { type: "action", action: { type: "message", label: "在嗎？", text: "在嗎？" } }
       ],
     },
   };
