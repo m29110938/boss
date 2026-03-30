@@ -54,7 +54,7 @@ function createMessage() {
       items: [
         { type: "action", action: { type: "message", label: "在", text: "在" } },
         { type: "action", action: { type: "message", label: "不在", text: "不在" } },
-        { type: "action", action: { type: "message", label: "準備離開", text: "準備離開" } }
+        { type: "action", action: { type: "message", label: "準備離開", text: "準備離開" } },
         { type: "action", action: { type: "message", label: "在嗎？", text: "在嗎？" } }
       ],
     },
